@@ -1,0 +1,14 @@
+# ============================================================================
+# dsh-plugin-ai-polish —— DSH bundle patch
+# ============================================================================
+# 插件的"挂载声明"：DSH 启动时按 bundle 层栈叠加各插件 patch，本文件把
+# AI 润色插件的 Host 半（index.js）与 Client 半（client.js）插入 Web profile
+# 的配置树。
+#
+# 安装方式（不需要手工改 profile 的 package.json / cordis.patch.yml）：
+#   dsh plugin --profile web add link:<本目录绝对路径>
+# ============================================================================
+
+- insert:
+    - id: dsh-plugin-ai-polish
+      name: dsh-plugin-ai-polish

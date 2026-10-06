@@ -3,6 +3,7 @@
 *.token
 .env
 .env.*
+.tmp-*
 
 # 编辑器 / 系统
 .vscode/

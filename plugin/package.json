@@ -1,0 +1,42 @@
+{
+  "name": "dsh-plugin-ai-polish",
+  "version": "1.0.0",
+  "description": "给 DeepSeek Harness（DSH）会话输入框加一个 AI 润色按钮，并在输入框右下角实时显示 token 消耗",
+  "private": true,
+  "type": "module",
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "polish",
+    "token"
+  ],
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "cordis.patch.yml",
+    "README.md"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-conversation"
+      ]
+    }
+  },
+  "meta": {
+    "title": "AI 润色",
+    "description": "模型选择器左侧的 AI 润色按钮 + 输入框右下角 token 统计"
+  },
+  "license": "MIT"
+}

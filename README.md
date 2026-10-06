@@ -49,7 +49,33 @@
 
 ## 安装
 
-本插件以「两个 JS 函数体」的形式分发：`code.host` 与 `code.client`。装载只需三步。
+有两种形态，任选其一。两者的 UI、润色策略、token 统计完全一致，只是 Client→Host 的通信通道不同。
+
+### A. 持久化安装（推荐，随 DSH 启动自动挂载）
+
+```powershell
+pwsh -NoProfile -File .\install.ps1
+```
+
+脚本把 [`plugin/`](plugin/) 复制到 `$DSH_HOME\plugins\dsh-plugin-ai-polish`，再执行
+`dsh plugin --profile web add "link:<该目录>"`（这一步同时把插件写进 profile 的
+`dsh.profile.bundles`）。装完**重启 DSH**（Host 半）并刷新页面（Client 半）即可看到按钮。
+
+验证：
+
+```powershell
+dsh --profile web --dump-config | Select-String 'ai-polish'   # 组合树里应出现该行
+curl.exe http://127.0.0.1:3080/dsh-ai-polish/status           # 应返回当前模型路由
+```
+
+卸载：`dsh plugin --profile web remove dsh-plugin-ai-polish`。
+细节与 HTTP 契约见 [`plugin/README.md`](plugin/README.md)。
+
+### B. 动态插件（随进程存活，停止即完全撤销）
+
+本插件也可以「两个 JS 函数体」的形式直接装载，无需安装任何包。
+前提是当前会话**确实具备** `cordis_define` / `cordis_run` 工具（在会话工具列表里查得到）；
+若没有，请走上面的 A 方案。
 
 **1. 让 DSH 会话具备 Cordis 工具**（本会话已具备可跳过）
 
@@ -144,9 +170,16 @@ system prompt 的核心约束（见 [`src/host.js`](src/host.js)）：
 
 ```
 .
-├── src/
-│   ├── host.js      # code.host 函数体：模型调用 + usage 归一化
-│   └── client.js    # code.client 函数体：润色按钮 + Token 统计
+├── plugin/          # 持久化 bundle：可被 dsh plugin 安装进 profile
+│   ├── package.json      # dsh.bundle.patch + dsh.client 清单
+│   ├── cordis.patch.yml  # 挂载声明
+│   ├── index.js          # Host 半：HTTP 路由 + 模型调用 + usage 归一化
+│   ├── client.js         # Client 半：润色按钮 + Token 统计
+│   └── README.md         # 安装细节与 HTTP 契约
+├── src/             # 动态插件形态：粘贴进 cordis_define 的函数体
+│   ├── host.js           # code.host
+│   └── client.js         # code.client
+├── install.ps1      # 一键安装：复制到 $DSH_HOME\plugins + dsh plugin add
 ├── .gitignore
 ├── LICENSE
 └── README.md
@@ -159,6 +192,8 @@ system prompt 的核心约束（见 [`src/host.js`](src/host.js)）：
 A Cordis dynamic plugin for DeepSeek Harness that adds an **AI Polish** button immediately left of the model selector in the composer. It rewrites a hesitant draft into clear, formal, professional prose in the same language, keeps the original for one-click restore, and shows an estimated / actual token cost in small grey text at the bottom-right of the input box.
 
 Load it by pasting `src/host.js` and `src/client.js` into `cordis_define` (`{"kind":"new","idPrefix":"aipol"}`) and then calling `cordis_run`. It is process-local: stopping the plugin removes every UI entry, handler, and state it added.
+
+A persistent, installable form of the same plugin lives in [`plugin/`](plugin/): run `pwsh -NoProfile -File .\install.ps1`, which copies the bundle to `$DSH_HOME\plugins\dsh-plugin-ai-polish` and installs it into the profile with `dsh plugin --profile web add "link:<dir>"`. The two halves are identical in behavior; only the Client→Host channel differs (HTTP route via `ctx.webServer` + `fetch` instead of the package-private JSON-RPC `harness.handle` / `host.call`).
 
 ---
 
