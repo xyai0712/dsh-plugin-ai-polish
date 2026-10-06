@@ -1,0 +1,18 @@
+# 秘密与本地环境：绝不提交
+.gh-token
+*.token
+.env
+.env.*
+
+# 编辑器 / 系统
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 依赖与日志（若将来引入构建流程）
+node_modules/
+*.log
+npm-debug.log*
+pnpm-debug.log*
