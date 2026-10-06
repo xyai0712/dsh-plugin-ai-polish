@@ -76,10 +76,45 @@ window.__ModuleLoader__.load({
     const COLOR_BORDER = 'var(--dsw-alias-border-l1)'
     const COLOR_BORDER_STRONG = 'var(--dsw-alias-border-l2)'
     const COLOR_ERROR = 'var(--dsw-alias-state-error-primary)'
-    const COLOR_HOVER_BG = 'var(--dsw-alias-bg-layer-2)'
     const COLOR_BUSINESS = 'var(--dsw-alias-state-business-primary)'
+
+    // ---------------------------------------------------------------------
+    // 主题 token 的兼容取值（名与 fallback 都逐条核对过 DSH 主题包）
+    //
+    // 教训：CSS 变量的 fallback **只在变量未定义时才生效**。所以一旦写了
+    // 不存在的 token 名（如曾用过的 --dsw-alias-bg-elevated），浅色 fallback
+    // 会在**暗色主题**下也被采用，浮层就变成"浅色面板 + 深色字"。
+    // 下面每个变量都取自 dsh-client-ui-theme 里真实存在的名字，fallback 写成
+    // 中性值，避免"暗色下露出浅色"这种翻车。
+    // ---------------------------------------------------------------------
+    const FALLBACKS = [
+      'rgba(28,28,30,.72)', // 浮层玻璃底
+      '0 12px 32px rgba(0,0,0,.4)', // 面板阴影
+      '#34C759', // 成功色（开关）
+      'rgba(120,120,128,.32)', // 开关未选中底
+      'rgba(120,120,128,.2)', // 悬停底色
+    ]
+
+    /** 依次取第一个可用的 token 名，配上同序号的中性 fallback（暗色安全）。 */
+    function pick() {
+      for (let i = 0; i < arguments.length && i < FALLBACKS.length; i++) {
+        const candidate = arguments[i]
+        if (typeof candidate === 'string' && candidate !== '') {
+          return candidate + ', ' + FALLBACKS[i]
+        }
+      }
+      return FALLBACKS[0]
+    }
+
+    const GLASS_BG = pick('var(--dsw-specific-menu)', 'var(--dsw-alias-bg-overlay)')
+    const SOLID_BG = pick('var(--dsw-specific-input-major)', 'var(--dsw-alias-bg-overlay)')
+    const PANEL_SHADOW = pick('var(--dsw-elevation-panel)', 'var(--dsw-elevation-soft)')
+    const SUCCESS_COLOR = pick('var(--dsw-alias-state-success-primary)')
+    const SWITCH_OFF_BG = pick('var(--dsw-alias-interactive-bg-hover-solid)', 'var(--dsw-alias-interactive-bg-hover)')
+    const HOVER_BG = pick('var(--dsw-alias-interactive-bg-hover)')
     const IOS_SPRING = 'cubic-bezier(.34,1.56,.64,1)'
-    const IOS_GREEN = '#34C759'
+
+
 
     /** 统一的动效曲线；尊重 prefers-reduced-motion。 */
     function motion(ms) {
@@ -445,7 +480,7 @@ window.__ModuleLoader__.load({
               width: '46px',
               height: '28px',
               borderRadius: '999px',
-              background: on ? IOS_GREEN : 'var(--dsw-alias-interactive-bg-hover-solid, rgba(120,120,128,.32))',
+              background: on ? SUCCESS_COLOR : SWITCH_OFF_BG,
               transition: motion(220),
               display: 'inline-block',
             },
@@ -576,7 +611,7 @@ window.__ModuleLoader__.load({
         function rowInteractions(disabled) {
           return {
             onMouseEnter: function (event) {
-              if (!disabled) event.currentTarget.style.background = COLOR_HOVER_BG
+              if (!disabled) event.currentTarget.style.background = HOVER_BG
             },
             onMouseLeave: function (event) { event.currentTarget.style.background = 'transparent' },
             onMouseDown: function (event) {
@@ -693,11 +728,11 @@ window.__ModuleLoader__.load({
               boxSizing: 'border-box',
               padding: '6px',
               borderRadius: '14px',
-              background: 'var(--dsw-alias-bg-elevated, rgba(250,250,250,.82))',
+              background: GLASS_BG,
               backdropFilter: 'blur(24px) saturate(180%)',
               WebkitBackdropFilter: 'blur(24px) saturate(180%)',
               border: '1px solid ' + COLOR_BORDER,
-              boxShadow: 'var(--dsw-elevation-medium, 0 12px 32px rgba(0,0,0,.18))',
+              boxShadow: PANEL_SHADOW,
               zIndex: 10001,
               opacity: visible ? 1 : 0,
               transform: visible ? 'scale(1) translateY(0)' : 'scale(.92) translateY(-4px)',
@@ -850,7 +885,7 @@ window.__ModuleLoader__.load({
                       height: '26px',
                       padding: '0 12px',
                       borderRadius: '999px',
-                      border: '1px solid ' + (changed ? COLOR_BORDER_STRONG : COLOR_BUSINESS),
+                      border: '1px solid ' + (changed ? COLOR_MUTED : COLOR_BUSINESS),
                       background: changed ? 'transparent' : COLOR_BUSINESS,
                       color: changed ? COLOR_MUTED : '#fff',
                       cursor: changed ? 'not-allowed' : 'pointer',
@@ -904,11 +939,11 @@ window.__ModuleLoader__.load({
                 boxSizing: 'border-box',
                 padding: '10px 12px',
                 borderRadius: '14px',
-                background: 'var(--dsw-alias-bg-elevated, rgba(250,250,250,.92))',
+                background: SOLID_BG,
                 backdropFilter: 'blur(24px) saturate(180%)',
                 WebkitBackdropFilter: 'blur(24px) saturate(180%)',
                 border: '1px solid ' + COLOR_BORDER,
-                boxShadow: 'var(--dsw-elevation-medium, 0 12px 32px rgba(0,0,0,.16))',
+                boxShadow: PANEL_SHADOW,
                 transition: motion(220),
               },
             },

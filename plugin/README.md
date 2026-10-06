@@ -81,6 +81,21 @@ dsh plugin --profile web remove dsh-plugin-ai-polish
 
 另外**过期结果会被丢弃**（指纹不匹配时不显示旧版本），**草稿被改动时「采纳」按钮禁用**，绝不覆盖用户正在写的字。
 
+### 主题（亮/暗色）踩坑记录
+
+浮层颜色**只用 DSH 主题包里真实存在的 token 名**。踩过的坑：
+
+- 曾用 `var(--dsw-alias-bg-elevated, rgba(250,250,250,.82))` 和
+  `var(--dsw-elevation-medium, ...)` —— 这两个名字在 DSH 主题里**不存在**，
+  于是浅色 fallback 在**暗色主题下也被采用**，浮层变成"浅色面板 + 深色字"。
+- 正确做法：`--dsw-specific-menu` / `--dsw-alias-bg-overlay`（浮层底）、
+  `--dsw-specific-input-major`（不透明浮层底）、`--dsw-elevation-panel` / `--dsw-elevation-soft`（阴影）、
+  `--dsw-alias-interactive-bg-hover`（悬停底）、`--dsw-alias-state-success-primary`（开关绿）。
+- fallback 一律写成**中性偏好暗**的值，宁可暗色下偏暗，也不要暗色下露白。
+
+> 核对方法：`grep -o '--dsw-[a-z0-9-]*' node_modules/@deepseek-ai/dsh-client-ui-theme/lib/client.js | sort -u`
+> 得到权威 token 表（本机为 311 个），插件里每个 token 名都应能在其中找到。
+
 ### 按钮为什么常亮
 
 v1.1.0 起按钮不再因为"草稿为空"而置灰——否则右击菜单也得先打字才能用，很别扭。
