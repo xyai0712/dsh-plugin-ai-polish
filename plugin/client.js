@@ -1019,6 +1019,9 @@ window.__ModuleLoader__.load({
           event.preventDefault()
           event.stopPropagation()
           if (disabled) return
+          // 菜单按 store.liveDraft 判断「立即重新生成」是否可用；liveDraft 只在
+          // 输入组件渲染时写入，菜单可能先渲染，所以这里用当前草稿即时校正。
+          store.liveDraft = draft
           const rect = event.currentTarget.getBoundingClientRect()
           openMenu(Math.round(rect.left), Math.round(rect.bottom + 6))
         }
