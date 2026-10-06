@@ -560,28 +560,76 @@ window.__ModuleLoader__.load({
             const row = rows[indexRef.current]
             if (row !== undefined && typeof row.focus === 'function') row.focus()
           }
-          function onDismiss() { closeMenu() }
+          // 注意：窗口滚动由下面的独立 effect 处理（需要区分"菜单内部滚动"，
+          // 否则展开「使用说明」后在内层滚动会立刻把菜单关掉）。
+          function onResize() { closeMenu() }
           document.addEventListener('pointerdown', onPointerDown, true)
           document.addEventListener('keydown', onKeyDown, true)
-          window.addEventListener('scroll', onDismiss, true)
-          window.addEventListener('resize', onDismiss, true)
+          window.addEventListener('resize', onResize, true)
           return function () {
             document.removeEventListener('pointerdown', onPointerDown, true)
             document.removeEventListener('keydown', onKeyDown, true)
-            window.removeEventListener('scroll', onDismiss, true)
-            window.removeEventListener('resize', onDismiss, true)
+            window.removeEventListener('resize', onResize, true)
           }
         }, [])
 
-        // 出屏翻转：以右击点为锚，越界则朝另一侧展开
-        const width = 260
-        const height = 286
+        // 定位：先用估算值给出初始位置（避免首帧跳一下），挂载后再用**实测高度**
+        // 归一化。菜单内容会因「使用说明」展开而变高，估算值只能当起点。
+        const MENU_WIDTH = 260
+        const estimatedHeight = 240
         const vw = (typeof window !== 'undefined' ? window.innerWidth : 1280)
         const vh = (typeof window !== 'undefined' ? window.innerHeight : 800)
-        let left = state.menuAt.x
-        let top = state.menuAt.y
-        if (left + width > vw - 8) left = Math.max(8, vw - width - 8)
-        if (top + height > vh - 8) top = Math.max(8, vh - height - 8)
+        const viewportMargin = 8
+
+        const placeState = React.useState(function () {
+          let left = state.menuAt.x
+          let top = state.menuAt.y
+          if (left + MENU_WIDTH > vw - viewportMargin) left = Math.max(viewportMargin, vw - MENU_WIDTH - viewportMargin)
+          if (top + estimatedHeight > vh - viewportMargin) {
+            top = Math.max(viewportMargin, state.menuAt.y - estimatedHeight - 34)
+          }
+          return { top: top, maxHeight: vh - 2 * viewportMargin, settled: false }
+        })
+        const place = placeState[0]
+        const setPlace = placeState[1]
+
+        // 菜单内部滚动区：让「使用说明」展开的内容在自己的盒子里滚，而不是把菜单撑出屏幕
+        const listRef = React.useRef(null)
+
+        React.useLayoutEffect(function () {
+          const node = menuRef.current
+          if (node === null) return
+          const height = node.offsetHeight
+          const width = node.offsetWidth || MENU_WIDTH
+          const maxHeight = Math.max(160, vh - 2 * viewportMargin)
+          const fitted = Math.min(height, maxHeight)
+
+          let left = state.menuAt.x
+          if (left + width > vw - viewportMargin) left = Math.max(viewportMargin, vw - width - viewportMargin)
+
+          let top = state.menuAt.y
+          if (top + fitted > vh - viewportMargin) {
+            // 优先向上翻转（右击点往上展开），真的放不下再夹到可容纳的范围
+            const above = state.menuAt.y - fitted - 34
+            top = above >= viewportMargin ? above : Math.max(viewportMargin, vh - fitted - viewportMargin)
+          }
+
+          setPlace({ top: top, maxHeight: maxHeight, settled: true })
+        }, [helpOpen, state.menuAt.x, state.menuAt.y, vh, vw])
+
+        // 菜单内部滚动不应关闭菜单；窗口/页面滚动才关闭
+        React.useEffect(function () {
+          function onScroll(event) {
+            const list = listRef.current
+            if (list !== null && event.target === list) return
+            if (list !== null && list.contains(event.target)) return
+            closeMenu()
+          }
+          window.addEventListener('scroll', onScroll, true)
+          return function () {
+            window.removeEventListener('scroll', onScroll, true)
+          }
+        }, [])
 
         function rowStyle(delayIndex) {
           return {
@@ -714,6 +762,43 @@ window.__ModuleLoader__.load({
           )
           : null
 
+        const menuHeader = React.createElement(
+          'div',
+          {
+            style: {
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '6px 10px 8px',
+              borderBottom: '1px solid ' + COLOR_BORDER,
+              marginBottom: '4px',
+              flex: 'none',
+              color: COLOR_MUTED,
+              fontSize: '13px',
+              fontWeight: 600,
+            },
+          },
+          React.createElement('span', null, '✨'),
+          React.createElement('span', null, 'AI 润色'),
+        )
+
+        const menuFooter = React.createElement(
+          'div',
+          {
+            style: {
+              padding: '8px 10px 4px',
+              borderTop: '1px solid ' + COLOR_BORDER,
+              marginTop: '4px',
+              flex: 'none',
+              color: COLOR_CAPTION,
+              fontSize: '11px',
+            },
+          },
+          'v' + VERSION + ' · 本机运行 · 预览不额外计费',
+        )
+
+        // 结构：固定头部 + 内部滚动区（条目与使用说明）+ 固定页脚。
+        // 内容超过屏幕时，滚动发生在这个内层盒子里，而不是把菜单撑出可视区。
         return React.createElement(
           'div',
           {
@@ -722,10 +807,13 @@ window.__ModuleLoader__.load({
             'aria-label': 'AI 润色设置',
             style: {
               position: 'fixed',
-              left: left + 'px',
-              top: top + 'px',
-              width: width + 'px',
+              left: state.menuAt.x + 'px',
+              top: place.top + 'px',
+              width: MENU_WIDTH + 'px',
+              maxHeight: place.maxHeight + 'px',
               boxSizing: 'border-box',
+              display: 'flex',
+              flexDirection: 'column',
               padding: '6px',
               borderRadius: '14px',
               background: GLASS_BG,
@@ -734,45 +822,30 @@ window.__ModuleLoader__.load({
               border: '1px solid ' + COLOR_BORDER,
               boxShadow: PANEL_SHADOW,
               zIndex: 10001,
-              opacity: visible ? 1 : 0,
-              transform: visible ? 'scale(1) translateY(0)' : 'scale(.92) translateY(-4px)',
+              overflow: 'hidden',
+              opacity: (visible && place.settled) ? 1 : 0,
+              transform: (visible && place.settled) ? 'scale(1) translateY(0)' : 'scale(.92) translateY(-4px)',
               transformOrigin: 'top left',
               transition: motion(260),
             },
           },
+          menuHeader,
           React.createElement(
             'div',
             {
+              ref: listRef,
               style: {
-                display: 'flex',
-                alignItems: 'center',
-                gap: '6px',
-                padding: '6px 10px 8px',
-                borderBottom: '1px solid ' + COLOR_BORDER,
-                marginBottom: '4px',
-                color: COLOR_MUTED,
-                fontSize: '13px',
-                fontWeight: 600,
+                flex: '1 1 auto',
+                minHeight: '0',
+                overflowY: 'auto',
+                overscrollBehavior: 'contain',
+                scrollbarWidth: 'thin',
               },
             },
-            React.createElement('span', null, '✨'),
-            React.createElement('span', null, 'AI 润色'),
+            ...rows,
+            helpPanel,
           ),
-          ...rows,
-          helpPanel,
-          React.createElement(
-            'div',
-            {
-              style: {
-                padding: '8px 10px 4px',
-                borderTop: '1px solid ' + COLOR_BORDER,
-                marginTop: '4px',
-                color: COLOR_CAPTION,
-                fontSize: '11px',
-              },
-            },
-            'v' + VERSION + ' · 本机运行 · 预览不额外计费',
-          ),
+          menuFooter,
         )
       }
 
