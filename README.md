@@ -2,7 +2,29 @@
 
 > 给 DeepSeek Harness（DSH）会话输入框加一个 **AI 润色** 按钮：把「心里有想法、嘴上说不清」的草稿，一键变成专业、正式、完整的表达，并在输入框右下角实时显示 token 消耗。
 
-这是一个 [Cordis](https://github.com/deepseek-ai) **动态插件**：不写盘、不改仓库、随当前 DSH 进程存活，停止即完全撤销（含 UI、状态与 Host handler）。
+这是一个 [Cordis](https://github.com/deepseek-ai) 插件，有两种形态：**持久化 bundle**（装进 profile，随 DSH 启动自动挂载）与**动态插件**（`cordis_define` + `cordis_run`，随进程存活、停止即完全撤销）。
+
+---
+
+## 最近更新
+
+> 更新时间：**2026-10-06 23:14（UTC+8）** · 当前版本 **v1.1.0** · 完整记录见 [CHANGELOG.md](CHANGELOG.md)
+
+**✨ v1.1.0 新增**
+
+- **悬停预览**：鼠标停在按钮上 250ms，输入框上方浮出润色结果，看不上就移开，草稿一字未动（默认关闭）
+- **右击设置菜单**：iOS 风浮层，含开关预览、开关消耗预估、长草稿上限、立即重新生成、使用说明
+
+**⚡ 优化**
+
+- 按钮改为**常亮**（不再因草稿为空置灰），右击菜单随时可用；空草稿点击改为 2.2 秒轻提示
+- 暗色模式浮层改用真实主题 token，修掉「浅色面板 + 深色字」
+
+**🐞 修复**
+
+- 右击菜单曾因预览状态为空而弹不出来
+- 「立即重新生成」曾误显示为不可点
+- 暗色下浮层露白（用了两个 DSH 主题里不存在的 token 名）
 
 ---
 
@@ -226,6 +248,8 @@ system prompt 的核心约束（见 [`src/host.js`](src/host.js)）：
 │   ├── host.js           # code.host
 │   └── client.js         # code.client
 ├── install.ps1      # 一键安装：复制到 $DSH_HOME\plugins + dsh plugin add
+├── CHANGELOG.md     # 更新公告：新增/移除/优化/修复
+├── INSTALL.md       # 自包含安装手册（3 条命令 + 冻结的 API 契约表）
 ├── .gitignore
 ├── LICENSE
 └── README.md
