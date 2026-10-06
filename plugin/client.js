@@ -209,6 +209,8 @@ window.__ModuleLoader__.load({
         liveDraft: '',
         menuOpen: false,
         menuAt: { x: 0, y: 0 },
+        hint: '',
+        hintTimer: null,
         prefs: loadPrefs(),
         // 右下角统计
         status: 'idle',
@@ -234,6 +236,18 @@ window.__ModuleLoader__.load({
       function setPrefs(patch) {
         store.prefs = { ...store.prefs, ...patch }
         savePrefs(store.prefs)
+        notify()
+      }
+
+      /** 轻提示：显示在输入框上方，自动消失（不消耗 token）。 */
+      function showHint(text) {
+        store.hint = text
+        if (store.hintTimer !== null) clearTimeout(store.hintTimer)
+        store.hintTimer = setTimeout(function () {
+          store.hintTimer = null
+          store.hint = ''
+          notify()
+        }, 2200)
         notify()
       }
 
@@ -737,13 +751,21 @@ window.__ModuleLoader__.load({
         // 右击菜单与预览卡片互不依赖：菜单即使没有任何预览也必须能弹出
         const menu = state.menuOpen === true ? React.createElement(SettingsMenu, null) : null
         const status = state.previewStatus
-        if (state.hovering !== true || status === 'idle') return menu
+        const hint = typeof state.hint === 'string' ? state.hint : ''
+        if (hint === '' && (state.hovering !== true || status === 'idle')) return menu
 
         const fingerprint = String(state.previewFingerprint === null ? '' : state.previewFingerprint)
         const changed = status === 'preview' && input.draft.trim() !== fingerprint
 
         let body = null
-        if (status === 'loading') {
+        if (hint !== '' && status === 'idle') {
+          // 轻提示（如"请先输入需要润色的内容"）：不调模型、不花 token
+          body = React.createElement(
+            'div',
+            { style: { color: COLOR_MUTED, fontSize: '13px' } },
+            hint,
+          )
+        } else if (status === 'loading') {
           body = React.createElement(
             'div',
             { style: { color: COLOR_MUTED, fontSize: '13px' } },
@@ -904,7 +926,7 @@ window.__ModuleLoader__.load({
                 },
               },
               React.createElement('span', null, '✨'),
-              React.createElement('span', null, 'AI 润色预览'),
+              React.createElement('span', null, (hint !== '' && status === 'idle') ? 'AI 润色' : 'AI 润色预览'),
             ),
             body,
           ),
@@ -927,8 +949,9 @@ window.__ModuleLoader__.load({
         const setPressed = pressedState[1]
 
         const busy = state.previewLoading === true && state.previewStatus === 'loading'
-        const hasText = draft.trim() !== ''
-        const disabled = !hasText || input.phase !== 'plain' || !canWrite
+        // 按钮常亮：只有"根本没法写入输入框"时才不可点。没有草稿不再是禁用理由，
+        // 这样右击菜单随时可用；空草稿点击时改为给出轻提示。
+        const disabled = !canWrite
 
         React.useEffect(function () {
           return function () {
@@ -940,6 +963,8 @@ window.__ModuleLoader__.load({
           if (disabled) return
           beginHover()
           if (state.prefs.hoverPreview !== true) return
+          // 悬停预览仍需有草稿才可能有意义
+          if (state.liveDraft.trim() === '') return
           if (hoverTimer.current !== null) clearTimeout(hoverTimer.current)
           hoverTimer.current = setTimeout(function () {
             hoverTimer.current = null
@@ -966,6 +991,16 @@ window.__ModuleLoader__.load({
         function onPolishClick() {
           if (disabled) return
           const source = draft.trim()
+
+          // 空草稿：不再禁用按钮，而是给出轻提示
+          if (source === '') {
+            showHint('请先输入需要润色的内容')
+            return
+          }
+          if (input.phase !== 'plain') {
+            showHint('模型正在处理上一条消息，请稍候')
+            return
+          }
           // 已有同草稿预览 → 直接采纳，不再花钱
           if (state.previewStatus === 'preview'
             && state.previewFingerprint === source
