@@ -1,5 +1,8 @@
 # dsh-plugin-ai-polish（持久化安装形态）
 
+> **安装请先读仓库根目录的 [`../INSTALL.md`](../INSTALL.md)**（自包含手册：3 条命令 + 冻结的 API 契约）。
+> 不要为了安装去通读 `node_modules/@deepseek-ai/**` 源码：实测那一次就花了 18,567 新增输入 token。
+
 本目录是「AI 润色」插件的**可安装 bundle**：装进 DSH profile 后，随 DSH 启动自动挂载，
 不需要每次会话重新 `cordis_define`。
 

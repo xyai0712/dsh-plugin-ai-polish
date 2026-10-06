@@ -53,6 +53,10 @@
 
 ### A. 持久化安装（推荐，随 DSH 启动自动挂载）
 
+> **先看 [`INSTALL.md`](INSTALL.md)（自包含安装手册）。**
+> 安装只需要 3 条命令；手册里冻结了全部 API 契约，**不要为了安装去打开 DSH 源码**——
+> 那是整个流程里唯一的大额 token 开销（详见文末「安装的 token 成本」）。
+
 ```powershell
 pwsh -NoProfile -File .\install.ps1
 ```
@@ -163,6 +167,33 @@ system prompt 的核心约束（见 [`src/host.js`](src/host.js)）：
 - **模型来源**：默认复用 `agentDefaultModel.currentSelection()`，即用户在界面上选中的模型；若该服务不可用则报「无法确定当前会话使用的模型」。
 - **与官方 stats 并存**：`conversation.composer.dock` 里 DSH 自带 `stats` 药丸，本插件是它下方的独立一行。
 - **草稿上限 12000 字符**，超出会提示分段润色（避免误粘贴触发超长请求）。
+
+---
+
+## 安装的 token 成本（实测，2026-10-06）
+
+安装动作本身**不花模型 token**：`install.ps1` 只做文件复制 + `dsh plugin add`（本地命令），
+`status` 自检是本地 HTTP，均不调用模型。
+
+真正的开销来自**助手为了核对 API 去通读 DSH 安装包源码**。那次安装的实测账：
+
+| 项目 | 实测值 |
+| --- | --- |
+| 单次最贵调用 | **18,567** 新增输入 token（读 `cordis-plugin-development/SKILL.md` + 模板） |
+| 该次占全会话新增输入 | 6% |
+| 整次安装（含 API 核对）新增输入 | **约 11 万** token |
+| 插件**运行**成本 | 点一次「✨ AI 润色」≈ **393** tokens（≈ 2 厘） |
+| 插件**空转**成本 | **0**（20 秒空闲会话日志一字节未增长，无后台模型调用） |
+
+**降本措施（已落地）**
+
+1. [`INSTALL.md`](INSTALL.md)：自包含手册，3 条命令 + 故障速查 + **冻结的 API 契约表**。照它装，无需读任何源码。
+2. `README` 与 `plugin/README.md` 顶部都指向该手册，并写明「不要读 `node_modules/@deepseek-ai/**`」。
+3. 明确禁止为「验证」而做真实润色调用：空草稿分支（`{"text":"   "}` → 报错文案）足以证明路由与模型解析可用。
+
+**给后续会话的硬性约束**：装/改本插件时，若怀疑某条契约失效，**只准用 `grep` 精确查那一条符号**
+（如 `currentSelection`、`stream(`），不准整文件通读 `dsh-client-ui-conversation/lib/client.js`
+这类万行级文件。
 
 ---
 
