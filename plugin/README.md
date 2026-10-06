@@ -1,5 +1,8 @@
-# dsh-plugin-ai-polish（持久化安装形态）
+# dsh-plugin-ai-polish v1.1.0（持久化安装形态）
 
+> **v1.1.0 新增**：悬停预览（默认关闭）+ 右击 iOS 风设置菜单（默认关闭）。
+> 装上后行为与 v1.0.0 完全一致，直到你右击按钮自己打开。
+>
 > **安装请先读仓库根目录的 [`../INSTALL.md`](../INSTALL.md)**（自包含手册：3 条命令 + 冻结的 API 契约）。
 > 不要为了安装去通读 `node_modules/@deepseek-ai/**` 源码：实测那一次就花了 18,567 新增输入 token。
 
@@ -46,6 +49,40 @@ dsh plugin --profile web remove dsh-plugin-ai-polish
 
 ---
 
+## 交互（v1.1.0）
+
+三个动作，全部落在「✨ AI 润色」按钮上：
+
+| 动作 | 行为 | 是否消耗 token |
+| --- | --- | --- |
+| **左键点击** | 有同草稿预览 → **直接采纳**；没有 → 即时润色并替换（= v1.0.0 行为） | 采纳缓存时 0；否则一次调用 |
+| **右击** | 弹出 iOS 风设置菜单（原生右键菜单被拦掉） | 0 |
+| **悬停 ≥250ms** | 当「悬停显示预览」已打开时，上方浮出预览卡片 | 每次生成一次调用；同草稿重复悬停 0 |
+
+**右击菜单项**
+
+| 项 | 默认 | 说明 |
+| --- | --- | --- |
+| 悬停显示预览 | **关** | 开着才会在悬停时生成预览 |
+| 显示消耗预估 | 开 | 预览卡片与右下角显示 token 数 |
+| 长草稿自动预览上限 | 2000 字 | 点击循环 500 / 1000 / 2000 / 不限制；超过则不自动生成 |
+| 立即重新生成 | — | 忽略缓存，手工再花一次调用 |
+| 使用说明 | — | 菜单内原地展开三行说明（不联网、不打开外部文件） |
+
+设置存在 `localStorage` 的 `dsh-ai-polish:prefs:v1`，刷新与重启后保留。
+
+### 防被动烧 token 的五个闸门
+
+1. **悬停触发是 `mouseenter`**（进入那一刻一次），不是每帧轮询——鼠标停着不动不产生任何事件
+2. **re-entry gate**：每次"进入"最多自动生成一次；鼠标一直停着时，草稿被 DSH/助手改写**也不会**重新生成
+3. **指纹缓存**：同草稿反复悬停 → 直接显示缓存，**0 token**
+4. **在飞去重**：同一草稿请求未返回时，不再叠加新请求
+5. **长草稿闸门**：超过上限只显示「点此生成」，要花这笔钱必须用户亲手点
+
+另外**过期结果会被丢弃**（指纹不匹配时不显示旧版本），**草稿被改动时「采纳」按钮禁用**，绝不覆盖用户正在写的字。
+
+---
+
 ## 两个半边的文件分工
 
 | 文件 | 角色 | 关键点 |
@@ -53,7 +90,7 @@ dsh plugin --profile web remove dsh-plugin-ai-polish
 | [package.json](package.json) | bundle 清单 | `dsh.bundle.patch` 声明 patch；`dsh.client` 声明 Web 端 bundle 与依赖的 UI 包 |
 | [cordis.patch.yml](cordis.patch.yml) | 挂载声明 | `insert` 一行 `id: dsh-plugin-ai-polish` |
 | [index.js](index.js) | Host 半 | `inject: ['llm','agentDefaultModel','tokenMeter','webServer']`；注册两条 HTTP 路由；`ctx.llm.stream()` 调模型 |
-| [client.js](client.js) | Client 半 | `window.__ModuleLoader__.load({ id, factory })`；注册 `conversation.input.right` 按钮与 `conversation.composer.dock` token 统计；用 `fetch` 调 Host 路由 |
+| [client.js](client.js) | Client 半 | `window.__ModuleLoader__.load({ id, factory })`；注册 `conversation.input.right`（按钮，含悬停与右击）、`conversation.input.overlay`（预览卡片 + 右击菜单）、`conversation.composer.dock`（token 统计）；用 `fetch` 调 Host 路由 |
 
 ### HTTP 契约
 
@@ -83,7 +120,8 @@ dsh plugin --profile web remove dsh-plugin-ai-polish
 
 ## 已知限制
 
-- **不主动消耗 token**：只有点击「✨ AI 润色」才会发起一次模型调用；装载、打字、预估都只在本地计算。
+- **不主动消耗 token**：只有点击「✨ AI 润色」、或（在已开启的前提下）悬停生成预览、或点「立即重新生成」才会发起一次模型调用；装载、打字、右击菜单、看缓存都只在本地计算。
+- **耗时估算**：`ctx.tokenMeter.estimateMessage` 只在模型未回传 usage 时兜底。
 - 预估是启发式（CJK ≈1.5 token/字），真实用量以模型回传的 `usage` 为准。
 - `link:` 安装意味着 **DSH 启动时该目录必须存在**；删除插件目录会让 profile 报模块缺失，请用 `dsh plugin remove` 卸载。
 - 修改 `client.js` / `index.js` 后需要重载页面（客户端）或重启 DSH（Host 半）。
