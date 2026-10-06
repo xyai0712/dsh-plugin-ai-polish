@@ -42,7 +42,7 @@ window.__ModuleLoader__.load({
 
     const React = require('react')
 
-    const VERSION = '1.1.0'
+    const VERSION = '1.1.1'
 
     /** useInput 缺席时的稳定兜底快照，保证 Hook 调用顺序恒定。 */
     const EMPTY_INPUT_STATE = { draft: '', phase: 'plain' }
@@ -109,8 +109,6 @@ window.__ModuleLoader__.load({
     const GLASS_BG = pick('var(--dsw-specific-menu)', 'var(--dsw-alias-bg-overlay)')
     const SOLID_BG = pick('var(--dsw-specific-input-major)', 'var(--dsw-alias-bg-overlay)')
     const PANEL_SHADOW = pick('var(--dsw-elevation-panel)', 'var(--dsw-elevation-soft)')
-    const SUCCESS_COLOR = pick('var(--dsw-alias-state-success-primary)')
-    const SWITCH_OFF_BG = pick('var(--dsw-alias-interactive-bg-hover-solid)', 'var(--dsw-alias-interactive-bg-hover)')
     const HOVER_BG = pick('var(--dsw-alias-interactive-bg-hover)')
     const IOS_SPRING = 'cubic-bezier(.34,1.56,.64,1)'
 
@@ -128,6 +126,36 @@ window.__ModuleLoader__.load({
       }
       return 'all ' + (reduced ? 0 : ms) + 'ms ' + IOS_SPRING
     }
+
+    /**
+     * 当前是暗色主题吗？
+     *
+     * 依据页面背景色的**亮度**判断，而不是猜 token 名。这样"开/关"的颜色可以在
+     * 两个主题下分别调到对比度足够的取值，不依赖主题是否提供状态色
+     * （实测 --dsw-alias-state-success-primary 在本机渲染出来并不是绿色）。
+     */
+    function isDarkTheme() {
+      try {
+        const root = document.documentElement
+        const style = window.getComputedStyle(root)
+        const value = style.backgroundColor || style.getPropertyValue('--dsw-alias-bg-base') || ''
+        const rgb = String(value).match(/rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)/)
+        if (rgb === null) return true
+        const r = Number(rgb[1])
+        const g = Number(rgb[2])
+        const b = Number(rgb[3])
+        return (0.299 * r + 0.587 * g + 0.114 * b) < 128
+      } catch (error) {
+        return true
+      }
+    }
+
+    // 开关配色：暗色用更亮的绿，亮色用标准的 iOS 绿；关态用明确可见的灰。
+    // 这两个状态必须一眼可辨——这是本插件唯一的"开关"，含糊等于失效。
+    const SWITCH_ON_COLOR = isDarkTheme() ? '#30D158' : '#34C759'
+    const SWITCH_ON_KNOB = '#FFFFFF'
+    const SWITCH_OFF_TRACK = isDarkTheme() ? '#48484A' : '#D1D1D6'
+    const SWITCH_OFF_KNOB = '#FFFFFF'
 
     /** 兜底估算：CJK 约 1.5 token/字，其余约 0.3 token/字符。 */
     function estimateTextTokens(text) {
@@ -480,21 +508,23 @@ window.__ModuleLoader__.load({
               width: '46px',
               height: '28px',
               borderRadius: '999px',
-              background: on ? SUCCESS_COLOR : SWITCH_OFF_BG,
-              transition: motion(220),
+              background: on ? SWITCH_ON_COLOR : SWITCH_OFF_TRACK,
+              border: on ? '1px solid ' + SWITCH_ON_COLOR : '1px solid ' + SWITCH_OFF_TRACK,
+              boxSizing: 'border-box',
               display: 'inline-block',
+              transition: motion(220),
             },
           },
           React.createElement('span', {
             style: {
               position: 'absolute',
-              top: '3px',
-              left: on ? '21px' : '3px',
+              top: '2px',
+              left: on ? '20px' : '2px',
               width: '22px',
               height: '22px',
               borderRadius: '999px',
-              background: '#fff',
-              boxShadow: '0 1px 3px rgba(0,0,0,.28)',
+              background: on ? SWITCH_ON_KNOB : SWITCH_OFF_KNOB,
+              boxShadow: '0 1px 3px rgba(0,0,0,.35)',
               transition: motion(220),
             },
           }),
@@ -780,6 +810,24 @@ window.__ModuleLoader__.load({
           },
           React.createElement('span', null, '✨'),
           React.createElement('span', null, 'AI 润色'),
+          // 版本号做成菜单里可见的小药丸：刷新后一眼确认自己跑的是哪个构建
+          React.createElement(
+            'span',
+            {
+              style: {
+                marginLeft: 'auto',
+                flex: 'none',
+                padding: '1px 6px',
+                borderRadius: '999px',
+                background: SWITCH_OFF_TRACK,
+                color: COLOR_MUTED,
+                fontSize: '10px',
+                fontWeight: 500,
+                letterSpacing: '0.02em',
+              },
+            },
+            'v' + VERSION,
+          ),
         )
 
         const menuFooter = React.createElement(

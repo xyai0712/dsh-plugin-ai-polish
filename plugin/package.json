@@ -1,6 +1,6 @@
 {
   "name": "dsh-plugin-ai-polish",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "给 DeepSeek Harness（DSH）会话输入框加一个 AI 润色按钮，并在输入框右下角实时显示 token 消耗",
   "private": true,
   "type": "module",
